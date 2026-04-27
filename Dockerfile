@@ -1,18 +1,16 @@
-# Dockerfile for controld-exporter
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o controld-exporter ./cmd/
 
 FROM scratch
 
-# Copy ca-certificates for HTTPS requests to controld-exporter controllers
-COPY --from=alpine:latest@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /build/controld-exporter /controld-exporter
 
-# Copy the pre-built binary from GoReleaser
-COPY controld-exporter /controld-exporter
-
-# Create a non-root user (using numeric ID for scratch image)
 USER 65534:65534
 
-# Set the entrypoint
 ENTRYPOINT ["/controld-exporter"]
-
-# Default command shows help
-CMD ["--help"]
